@@ -1,0 +1,19 @@
+{
+  "name": "freelancemarketplace_backend",
+  "version": "1.0.0",
+  "description": "Freelance Marketplace",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/veenabhavani5050/FreelanceMarketplace_backend.git"
+  },
+  "author": "veena",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/veenabhavani5050/FreelanceMarketplace_backend/issues"
+  },
+  "homepage": "https://github.com/veenabhavani5050/FreelanceMarketplace_backend#readme"
+}
