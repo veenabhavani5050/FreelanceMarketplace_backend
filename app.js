@@ -1,25 +1,49 @@
-const express = require('express');
-const authRouter = require('./routes/authRoutes');
-const logger = require('./utils/logger');
-const cookieParser = require('cookie-parser');
-const errorRoute = require('./utils/errorRoute');
+// app.js
+import express from "express";
+import dotenv from "dotenv";
+import cors from "cors";
+import helmet from "helmet";
+
+import connectDB from "./config/db.js";
+
+import userRoutes from "./routes/userRoutes.js";
+import dashboardRoutes from "./routes/dashboardRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
+
+import { errorHandler } from "./middleware/errorHandler.js";
+import logger from "./middleware/logger.js";
+
+
+dotenv.config();
+connectDB();
 
 const app = express();
 
-// Middleware to parse cookies
-app.use(cookieParser());
-
-// Middleware to parse JSON request bodies
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-// Logger middleware
-app.use(logger);
+// Add security headers
+app.use(helmet());
+
+// Enable CORS for frontend URL or all origins (adjust for production)
+app.use(cors({
+  origin: process.env.FRONTEND_URL || "*",
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true,
+}));
 
 // Routes
-app.use('/api/v1/auth', authRouter);
+app.use("/api/users", userRoutes);
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/notifications", notificationRoutes);
 
-// Middleware to handle 404 errors
-app.use(errorRoute);
+// 404 route handler
+app.use((req, res, next) => {
+  res.status(404).json({ message: "Route not found" });
+});
 
-module.exports = app;
+// log the details
+app.use(logger);
+// Error middleware (after routes)
+app.use(errorHandler);
+
+export default app;

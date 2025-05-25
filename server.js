@@ -1,15 +1,45 @@
-const mongoose = require('mongoose');
-const app = require('./app');
-const { MONGODB_URL } = require('./utils/config'); 
+// server.js
+import http from "http";
+import dotenv from "dotenv";
+import app from "./app.js";
+import { Server } from "socket.io";
 
-mongoose.connect(MONGODB_URL)
-.then(() => {
-  console.log('MongoDB connected successfully');
+dotenv.config();
 
-  app.listen(3001, '127.0.0.1', () => {
-    console.log('Server is running at http://127.0.0.1:3001');
+const PORT = process.env.PORT || 5000;
+
+// Create HTTP server using Express app
+const server = http.createServer(app);
+
+// Setup Socket.io on the server with CORS config
+const io = new Server(server, {
+  cors: {
+    origin: process.env.FRONTEND_URL || "*", // Replace * with your frontend URL in production
+    methods: ["GET", "POST"],
+  },
+});
+
+io.on("connection", (socket) => {
+  console.log(`New client connected: ${socket.id}`);
+
+  socket.on("joinRoom", (roomId) => {
+    socket.join(roomId);
+    console.log(`Socket ${socket.id} joined room ${roomId}`);
   });
-})
-.catch((err) => {
-  console.error(`MongoDB connection failed: ${err.message}`);
+
+  socket.on("leaveRoom", (roomId) => {
+    socket.leave(roomId);
+    console.log(`Socket ${socket.id} left room ${roomId}`);
+  });
+
+  socket.on("disconnect", () => {
+    console.log(`Client disconnected: ${socket.id}`);
+  });
+});
+
+// Make io accessible to routes/controllers via app.locals
+app.locals.io = io;
+
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
