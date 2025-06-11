@@ -1,7 +1,6 @@
 /* ───────── routes/authRoutes.js ───────── */
-import express   from 'express';
-import passport  from 'passport';
-import jwt       from 'jsonwebtoken';
+import express  from 'express';
+import passport from 'passport';
 
 import {
   registerUser,
@@ -17,17 +16,17 @@ import { protect } from '../middleware/auth.js';
 
 const router = express.Router();
 
-/* ─────── Local auth ─────── */
+/* ---------- Local auth ---------- */
 router.post('/register', registerUser);
 router.post('/login',    authUser);
 router.post('/logout',   logoutUser);
-router.get('/me', protect, getMe);
+router.get('/me',        protect, getMe);
 
-/* ─────── Password reset ─────── */
-router.post('/forgot-password', forgotPassword);
+/* ---------- Password reset ---------- */
+router.post('/forgot-password',      forgotPassword);
 router.post('/reset-password/:token', resetPassword);
 
-/* ─────── Google OAuth ─────── */
+/* ---------- Google OAuth ---------- */
 router.get(
   '/google',
   passport.authenticate('google', {
@@ -36,9 +35,13 @@ router.get(
   })
 );
 
+// FE must implement a /oauth-success route that reads ?token=...
 router.get(
   '/google/callback',
-  passport.authenticate('google', { session: false, failureRedirect: `${process.env.FRONTEND_URL}/login` }),
+  passport.authenticate('google', {
+    session        : false,
+    failureRedirect: `${process.env.FRONTEND_URL}/login`,
+  }),
   googleCallback
 );
 

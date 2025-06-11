@@ -20,6 +20,7 @@
   },
   "homepage": "https://github.com/veenabhavani5050/FreelanceMarketplace_backend#readme",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.826.0",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",
     "body-parser": "^2.2.0",
@@ -45,6 +46,7 @@
     "passport-google-oauth20": "^2.0.0",
     "passport-jwt": "^4.0.1",
     "socket.io": "^4.8.1",
+    "streamifier": "^0.1.1",
     "stripe": "^18.2.1"
   },
   "devDependencies": {

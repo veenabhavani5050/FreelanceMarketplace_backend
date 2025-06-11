@@ -1,10 +1,7 @@
 import asyncHandler from 'express-async-handler';
 import Notification from '../models/Notification.js';
 
-/* ───────────────────────────────────────────────
-   Get all notifications (optionally unread only)
-   GET /api/notifications?onlyUnread=true
-   ─────────────────────────────────────────────── */
+// GET /api/notifications?onlyUnread=true
 export const getUserNotifications = asyncHandler(async (req, res) => {
   const filter = { user: req.user._id };
   if (req.query.onlyUnread === 'true') filter.isRead = false;
@@ -13,10 +10,7 @@ export const getUserNotifications = asyncHandler(async (req, res) => {
   res.json(notes);
 });
 
-/* ───────────────────────────────────────────────
-   Mark single notification as read
-   PUT /api/notifications/:id/read
-   ─────────────────────────────────────────────── */
+// PUT /api/notifications/:id/read
 export const markAsRead = asyncHandler(async (req, res) => {
   const note = await Notification.findOneAndUpdate(
     { _id: req.params.id, user: req.user._id },
@@ -30,10 +24,7 @@ export const markAsRead = asyncHandler(async (req, res) => {
   res.json(note);
 });
 
-/* ───────────────────────────────────────────────
-   Mark ALL of user’s notifications as read
-   PUT /api/notifications/mark-all-read
-   ─────────────────────────────────────────────── */
+// PUT /api/notifications/mark-all-read
 export const markAllAsRead = asyncHandler(async (req, res) => {
   await Notification.updateMany(
     { user: req.user._id, isRead: false },
@@ -42,10 +33,7 @@ export const markAllAsRead = asyncHandler(async (req, res) => {
   res.json({ message: 'All notifications marked as read' });
 });
 
-/* ───────────────────────────────────────────────
-   Create notification  (internal use)
-   POST /api/notifications
-   ─────────────────────────────────────────────── */
+// POST /api/notifications
 export const createNotification = asyncHandler(async (req, res) => {
   const { user, type, message } = req.body;
   if (!user || !type || !message) {
@@ -63,10 +51,7 @@ export const createNotification = asyncHandler(async (req, res) => {
   res.status(201).json(note);
 });
 
-/* ───────────────────────────────────────────────
-   Delete a notification
-   DELETE /api/notifications/:id
-   ─────────────────────────────────────────────── */
+// DELETE /api/notifications/:id
 export const deleteNotification = asyncHandler(async (req, res) => {
   const deleted = await Notification.findOneAndDelete({
     _id : req.params.id,

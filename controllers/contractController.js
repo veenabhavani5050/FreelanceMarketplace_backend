@@ -2,7 +2,7 @@
 import asyncHandler from 'express-async-handler';
 import Contract from '../models/Contract.js';
 
-/* Role filter helper */
+/* helper for generic “my contracts” list */
 const roleFilter = (role, id) =>
   role === 'client'
     ? { client: id }
@@ -23,11 +23,10 @@ export const createContract = asyncHandler(async (req, res) => {
   });
 
   req.io.to(freelancer).emit('contract:new', contract);
-
   res.status(201).json(contract);
 });
 
-/* ───── 2. Lists ───── */
+/* ───── 2A. My contracts list (client or freelancer) ───── */
 export const listContracts = asyncHandler(async (req, res) => {
   const contracts = await Contract.find(roleFilter(req.user.role, req.user._id))
     .populate('client freelancer', 'name email')
@@ -36,7 +35,24 @@ export const listContracts = asyncHandler(async (req, res) => {
   res.json(contracts);
 });
 
-/* Lists restricted to role dashboards */
+/* ───── 2B. Admin / self: list by explicit clientId ───── */
+export const listContractsByClientId = asyncHandler(async (req, res) => {
+  const { clientId } = req.params;
+
+  /* only admin or the same client may request this */
+  if (req.user.role !== 'admin' && req.user._id.toString() !== clientId) {
+    res.status(403);
+    throw new Error('Not authorised');
+  }
+
+  const contracts = await Contract.find({ client: clientId })
+    .populate('freelancer', 'name email')
+    .sort('-createdAt');
+
+  res.json(contracts);
+});
+
+/* ───── 2C. Lists restricted to dashboards (unchanged) ───── */
 export const listClientContracts = asyncHandler(async (req, res) => {
   const contracts = await Contract.find({ client: req.user._id })
     .populate('freelancer', 'name email')

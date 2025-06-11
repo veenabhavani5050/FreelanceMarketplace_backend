@@ -1,6 +1,6 @@
-// backend/controllers/serviceController.js
 import asyncHandler from 'express-async-handler';
 import Service      from '../models/Service.js';
+import uploadToCloudinary from '../utils/uploadToCloudinary.js'; // ⬅ helper
 
 /* ───────── Freelancer ▸ Create service ───────── */
 export const createService = asyncHandler(async (req, res) => {
@@ -8,19 +8,29 @@ export const createService = asyncHandler(async (req, res) => {
     res.status(403);
     throw new Error('Only freelancers can create services');
   }
-  const { title, description, category, price, images } = req.body;
+
+  const { title, description, category, price } = req.body;
   if (!title || !price) {
     res.status(400);
     throw new Error('Title & price are required');
   }
 
+  /* handle image uploads (optional) */
+  let images = [];
+  if (req.files && req.files.length) {
+    const uploads = await Promise.all(
+      req.files.map((file) => uploadToCloudinary(file))
+    );
+    images = uploads.map((u) => u.secure_url);
+  }
+
   const service = await Service.create({
-    freelancer: req.user._id,
+    freelancer : req.user._id,
     title,
     description,
     category,
     price,
-    images: images || [],
+    images,
   });
 
   req.io.to(req.user._id.toString()).emit('service:new', service);
@@ -35,8 +45,8 @@ export const getAllServices = asyncHandler(async (req, res) => {
   } = req.query;
 
   const q = { availability: true };
-  if (category)    q.category = category;
-  if (freelancer)  q.freelancer = freelancer;
+  if (category)   q.category   = category;
+  if (freelancer) q.freelancer = freelancer;
   if (minPrice || maxPrice) {
     q.price = {};
     if (minPrice) q.price.$gte = Number(minPrice);
@@ -84,10 +94,18 @@ export const updateService = asyncHandler(async (req, res) => {
     throw new Error('Not authorised to update this service');
   }
 
-  const fields = ['title','description','category','price','images','availability'];
+  const fields = ['title','description','category','price','availability'];
   fields.forEach((f) => {
     if (req.body[f] !== undefined) service[f] = req.body[f];
   });
+
+  /* new images supplied? replace the array */
+  if (req.files && req.files.length) {
+    const uploads = await Promise.all(
+      req.files.map((file) => uploadToCloudinary(file))
+    );
+    service.images = uploads.map((u) => u.secure_url);
+  }
 
   const updated = await service.save();
   req.io.to(req.user._id.toString()).emit('service:update', updated);
@@ -105,8 +123,8 @@ export const deleteService = asyncHandler(async (req, res) => {
     res.status(403);
     throw new Error('Not authorised to delete this service');
   }
-  await service.deleteOne();
 
+  await service.deleteOne();
   req.io.to(req.user._id.toString()).emit('service:delete', { _id: service._id });
   res.json({ message: 'Service removed' });
 });

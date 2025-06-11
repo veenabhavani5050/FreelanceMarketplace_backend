@@ -11,31 +11,30 @@ const signToken = (id) =>
 
 const cookieOpts = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
+  secure  : process.env.NODE_ENV === 'production',
   sameSite: 'lax',
-  maxAge: 30 * 24 * 60 * 60 * 1000,
+  maxAge  : 30 * 24 * 60 * 60 * 1000, // 30 days
 };
 
 /* ───── Register ───── */
 export const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password, role } = req.body;
 
-  if (!name || !email || !role || (role !== 'client' && role !== 'freelancer')) {
+  if (!name || !email || !password || !['client', 'freelancer'].includes(role)) {
     res.status(400);
-    throw new Error('Please provide name, email and a valid role');
+    throw new Error('Name, email, password and valid role are required');
   }
+
   if (await User.findOne({ email })) {
     res.status(409);
-    throw new Error('User already exists');
-  }
-  if (!password) {
-    res.status(400);
-    throw new Error('Password is required for email sign‑up');
+    throw new Error('User already exists with that email');
   }
 
-  const user = await User.create({ name, email, password, role });
+  // Hash password before create (model may not hide password)
+  const hashed = await bcrypt.hash(password, 10);
+  const user   = await User.create({ name, email, password: hashed, role });
+
   const token = signToken(user._id);
-
   res.cookie('token', token, cookieOpts);
   res.status(201).json({ _id: user._id, name, email, role, token });
 });
@@ -47,7 +46,7 @@ export const authUser = asyncHandler(async (req, res) => {
   const user = await User.findOne({ email }).select('+password');
   if (!user || !(await bcrypt.compare(password, user.password))) {
     res.status(401);
-    throw new Error('Invalid credentials');
+    throw new Error('Invalid email or password');
   }
 
   const token = signToken(user._id);
@@ -65,14 +64,17 @@ export const logoutUser = (_req, res) => {
 
 /* ───── Google OAuth callback ───── */
 export const googleCallback = asyncHandler(async (req, res) => {
-  const { _id } = req.user;     // set by passport
-  const token = signToken(_id);
+  const { _id } = req.user; // set by passport
+  const token   = signToken(_id);
 
   res.cookie('token', token, cookieOpts);
-  return res.redirect(`${process.env.FRONTEND_URL}/oauth-success?token=${token}`);
+
+  // Encode the JWT so it doesn’t break querystring
+  const safe = encodeURIComponent(token);
+  res.redirect(`${process.env.FRONTEND_URL}/oauth-success?token=${safe}`);
 });
 
-/* ───── Forgot / Reset password ───── */
+/* ───── Forgot Password ───── */
 export const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
   const user = await User.findOne({ email });
@@ -80,42 +82,45 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     return res.json({ message: 'If that email exists, a reset link was sent.' });
   }
 
-  const raw   = crypto.randomBytes(32).toString('hex');
-  const hash  = crypto.createHash('sha256').update(raw).digest('hex');
+  const raw  = crypto.randomBytes(32).toString('hex');
+  const hash = crypto.createHash('sha256').update(raw).digest('hex');
 
   user.passwordResetToken   = hash;
-  user.passwordResetExpires = Date.now() + 10 * 60 * 1000;
+  user.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 min
   await user.save({ validateBeforeSave: false });
 
   const resetURL = `${process.env.FRONTEND_URL}/reset-password/${raw}`;
+
   const transporter = nodemailer.createTransport({
     service: 'gmail',
-    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+    auth   : { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
   });
 
   await transporter.sendMail({
-    from: '"Freelance Marketplace" <no-reply@freemarket.com>',
-    to: user.email,
+    from   : '"Freelance Marketplace" <no-reply@freemarket.com>',
+    to     : user.email,
     subject: 'Password reset',
-    html: `<p>Reset your password <a href="${resetURL}">here</a>. Expires in 10 min.</p>`,
+    html   : `<p>Reset your password <a href="${resetURL}">here</a>. Link expires in 10 minutes.</p>`,
   });
 
   res.json({ message: 'If that email exists, a reset link was sent.' });
 });
 
+/* ───── Reset Password ───── */
 export const resetPassword = asyncHandler(async (req, res) => {
-  const hashedToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
+  const hashed = crypto.createHash('sha256').update(req.params.token).digest('hex');
 
   const user = await User.findOne({
-    passwordResetToken: hashedToken,
+    passwordResetToken  : hashed,
     passwordResetExpires: { $gt: Date.now() },
   });
+
   if (!user) {
     res.status(400);
     throw new Error('Token invalid or expired');
   }
 
-  user.password            = req.body.password;
+  user.password            = await bcrypt.hash(req.body.password, 10);
   user.passwordResetToken   = undefined;
   user.passwordResetExpires = undefined;
   await user.save();
