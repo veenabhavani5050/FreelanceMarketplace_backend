@@ -1,22 +1,31 @@
-import express from "express";
+// backend/routes/serviceRoutes.js
+import express from 'express';
 import {
   createService,
   getAllServices,
   getServiceById,
   updateService,
   deleteService,
-} from "../controllers/serviceController.js";
-import { protect } from "../middleware/authMiddleware.js";
+  getMyServices,
+} from '../controllers/serviceController.js';
+import { protect, freelancerOnly } from '../middleware/auth.js';
 
 const router = express.Router();
 
-router.route("/")
-  .get(getAllServices)
-  .post(protect, createService);
+/* /api/services */
+router
+  .route('/')
+  .get(getAllServices)                           // public list
+  .post(protect, freelancerOnly, createService); // create
 
-router.route("/:id")
+/* /api/services/my */
+router.get('/my', protect, freelancerOnly, getMyServices);
+
+/* /api/services/:id */
+router
+  .route('/:id')
   .get(getServiceById)
-  .put(protect, updateService)
-  .delete(protect, deleteService);
+  .put(protect, freelancerOnly, updateService)
+  .delete(protect, freelancerOnly, deleteService);
 
 export default router;

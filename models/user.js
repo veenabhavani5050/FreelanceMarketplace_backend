@@ -1,43 +1,67 @@
-import mongoose from "mongoose";
-import bcrypt from "bcryptjs";
+/* ───────── models/User.js ───────── */
+import mongoose from 'mongoose';
+import bcrypt   from 'bcryptjs';
+import crypto   from 'crypto';
 
 const userSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true, trim: true },
+    name : { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true },
-    password: { type: String, required: true },
+    password: { type: String, select: false },
+    googleId: { type: String, default: null },
+
     role: {
       type: String,
-      enum: ["freelancer", "client"],
-      default: "client",
+      enum: ['freelancer', 'client', 'admin'],
+      required: true,
     },
+
+    profileImage: { type: String, default: '' },
+    phone   : { type: String, default: '' },
+    location: { type: String, default: '' },
+
     profile: {
-      skills: [String],        // Freelancer skills
-      portfolio: [String],     // URLs of portfolio items
-      availability: Boolean,   // Freelancer availability
-      companyName: String,     // Client company name
-      businessDetails: String, // Client business details
+      skills      : [String],
+      portfolio   : [{ title: String, url: String }],
+      availability: {
+        type: String,
+        enum: ['full-time', 'part-time', 'freelance'],
+        default: 'freelance',
+      },
+      bio            : { type: String, maxlength: 500 },
+      experience     : String,
+      languages      : [String],
+      companyName    : String,
+      businessDetails: String,
     },
-    resetPasswordToken: String,
-    resetPasswordExpires: Date,
+
+    rating: { type: Number, default: 0 },
+
+    passwordResetToken  : String,
+    passwordResetExpires: Date,
+
+    isBlocked: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
 
-// Hash password before saving user document
-userSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next();
-
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
+/* Hash password if modified & present */
+userSchema.pre('save', async function (next) {
+  if (!this.isModified('password') || !this.password) return next();
+  this.password = await bcrypt.hash(this.password, 10);
   next();
 });
 
-// Instance method to compare entered password with stored hash
-userSchema.methods.matchPassword = async function (enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
+/* Instance methods */
+userSchema.methods.matchPassword = function (candidate) {
+  return bcrypt.compare(candidate, this.password);
 };
 
-const User = mongoose.model("User", userSchema);
+userSchema.methods.createPasswordResetToken = function () {
+  const raw  = crypto.randomBytes(32).toString('hex');
+  this.passwordResetToken = crypto.createHash('sha256').update(raw).digest('hex');
+  this.passwordResetExpires = Date.now() + 60 * 60 * 1000;
+  return raw;
+};
 
-export default User;
+export default mongoose.model('User', userSchema);

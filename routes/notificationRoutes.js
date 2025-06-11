@@ -1,13 +1,26 @@
-import express from "express";
-import { protect } from "../middleware/authMiddleware.js";
+import express from 'express';
 import {
   getUserNotifications,
   markAsRead,
-} from "../controllers/notificationController.js";
+  markAllAsRead,
+  createNotification,
+  deleteNotification,
+} from '../controllers/notificationController.js';
+import { protect } from '../middleware/auth.js';
 
 const router = express.Router();
 
-router.get("/", protect, getUserNotifications);
-router.put("/:id/read", protect, markAsRead);
+/* List & create (create is internal/back‑office use) */
+router
+  .route('/')
+  .get(protect, getUserNotifications)
+  .post(protect, createNotification);
+
+/* Mark every notification as read */
+router.put('/mark-all-read', protect, markAllAsRead);
+
+/* Single‑notification actions */
+router.put('/:id/read', protect, markAsRead);
+router.delete('/:id',   protect, deleteNotification);
 
 export default router;

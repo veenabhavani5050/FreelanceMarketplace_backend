@@ -1,21 +1,33 @@
-import express from "express";
+/* routes/contractRoutes.js */
+import express from 'express';
 import {
   createContract,
-  getMyContracts,
-  updateContract,
+  listContracts,
+  listClientContracts,
+  listFreelancerContracts,
   getContractById,
-} from "../controllers/contractController.js";
-import { protect } from "../middleware/authMiddleware.js";
+  updateContract,
+  updateMilestoneStatus,
+} from '../controllers/contractController.js';
+import { protect, clientOnly, freelancerOnly } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Routes for contracts
-router.route("/")
-  .post(protect, createContract)     // Create a new contract
-  .get(protect, getMyContracts);     // Get all contracts for the authenticated user
+/* create */
+router.post('/', protect, clientOnly, createContract);
 
-router.route("/:id")
-  .get(protect, getContractById)     // Get a specific contract by ID
-  .put(protect, updateContract);     // Update a contract by ID
+/* lists */
+router.get('/',           protect, listContracts);
+router.get('/client',     protect, clientOnly,     listClientContracts);
+router.get('/freelancer', protect, freelancerOnly, listFreelancerContracts);
+
+/* single */
+router
+  .route('/:id')
+  .get(protect, getContractById)
+  .put(protect, updateContract);
+
+/* milestone status update */
+router.put('/:id/milestone/:milestoneId', protect, updateMilestoneStatus);
 
 export default router;

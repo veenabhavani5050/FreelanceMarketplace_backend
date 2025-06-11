@@ -1,22 +1,31 @@
-import express from "express";
+// backend/routes/jobRoutes.js
+import express from 'express';
 import {
   createJob,
-  getAllJobs,
+  getJobs,
   getJobById,
   updateJob,
   deleteJob,
-} from "../controllers/jobController.js";
-import { protect } from "../middleware/authMiddleware.js";
+  getMyJobs,
+} from '../controllers/jobController.js';
+import { protect, clientOnly } from '../middleware/auth.js';
 
 const router = express.Router();
 
-router.route("/")
-  .get(getAllJobs)
-  .post(protect, createJob);
+/* /api/jobs */
+router
+  .route('/')
+  .post(protect, clientOnly, createJob)   // create
+  .get(getJobs);                         // public list
 
-router.route("/:id")
+/* /api/jobs/my (dashboard) */
+router.get('/my', protect, clientOnly, getMyJobs);
+
+/* /api/jobs/:id */
+router
+  .route('/:id')
   .get(getJobById)
-  .put(protect, updateJob)
-  .delete(protect, deleteJob);
+  .put(protect, clientOnly, updateJob)
+  .delete(protect, clientOnly, deleteJob);
 
 export default router;

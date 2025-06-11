@@ -1,45 +1,41 @@
-// server.js
-import http from "http";
-import dotenv from "dotenv";
-import app from "./app.js";
-import { Server } from "socket.io";
-
+/* ─────────────── server.js ─────────────── */
+import dotenv from 'dotenv';
 dotenv.config();
 
-const PORT = process.env.PORT || 5000;
+import http from 'http';
+import { Server } from 'socket.io';
 
-// Create HTTP server using Express app
+import app from './app.js';
+import socketHandler from './sockets/socketHandler.js';
+import { startAutoRelease } from './utils/scheduler.js';  // 🌟 NEW
+
+const PORT         = process.env.PORT         || 5000;
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+/* HTTP + Socket.IO */
 const server = http.createServer(app);
 
-// Setup Socket.io on the server with CORS config
 const io = new Server(server, {
-  cors: {
-    origin: process.env.FRONTEND_URL || "*", // Replace * with your frontend URL in production
-    methods: ["GET", "POST"],
-  },
+  cors: { origin: FRONTEND_URL, credentials: true },
 });
+app.locals.io = io;                                  // req.io available everywhere
 
-io.on("connection", (socket) => {
-  console.log(`New client connected: ${socket.id}`);
+/* Initialise central socket handler */
+const { broadcast, pushToUser } = socketHandler(io);
+app.locals.broadcast  = broadcast;
+app.locals.pushToUser = pushToUser;
 
-  socket.on("joinRoom", (roomId) => {
-    socket.join(roomId);
-    console.log(`Socket ${socket.id} joined room ${roomId}`);
-  });
+/* Optional daily auto‑release cron */
+startAutoRelease(app);                                // 🌟 NEW
 
-  socket.on("leaveRoom", (roomId) => {
-    socket.leave(roomId);
-    console.log(`Socket ${socket.id} left room ${roomId}`);
-  });
+/* Graceful shutdown */
+const exit = (type, err) => {
+  console.error(`${type} ❌`, err);
+  server.close(() => process.exit(1));
+};
+process.on('unhandledRejection', (err) => exit('UNHANDLED PROMISE', err));
+process.on('uncaughtException',  (err) => exit('UNCAUGHT EXCEPTION', err));
 
-  socket.on("disconnect", () => {
-    console.log(`Client disconnected: ${socket.id}`);
-  });
-});
-
-// Make io accessible to routes/controllers via app.locals
-app.locals.io = io;
-
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+server.listen(PORT, () =>
+  console.log(`🚀  Server running at http://localhost:${PORT}`)
+);

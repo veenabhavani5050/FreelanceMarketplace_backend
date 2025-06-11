@@ -1,18 +1,29 @@
-const logger = (req, res, next) => {
-  console.log(`Request Method: ${req.method}`);
-  console.log(`Request URL: ${req.originalUrl}`); // use originalUrl for full path including query string
-  console.log(`Request Headers: ${JSON.stringify(req.headers)}`);
-  
-  // Safely stringify body, params, query, cookies, if they exist
-  console.log(`Request Body: ${JSON.stringify(req.body || {})}`);
-  console.log(`Request Params: ${JSON.stringify(req.params || {})}`);
-  console.log(`Request Query: ${JSON.stringify(req.query || {})}`);
-  console.log(`Request Cookies: ${JSON.stringify(req.cookies || {})}`);
-  
-  console.log(`Request Time: ${new Date().toISOString()}`); // ISO string is better for logs
-  
-  console.log('--------------------------------------');
+// middleware/logger.js
+/* Simple dev‑time request logger (disabled in production) */
+const logger = (req, _res, next) => {
+  if (process.env.NODE_ENV === 'production') return next();
+
+  try {
+    console.log('――― Incoming Request ―――');
+    console.log(` ${req.method} ${req.originalUrl}`);
+    console.log(' Headers:', safe(req.headers));
+    if (Object.keys(req.body || {}).length)   console.log(' Body   :', safe(req.body));
+    if (Object.keys(req.query || {}).length)  console.log(' Query  :', safe(req.query));
+    if (Object.keys(req.params || {}).length) console.log(' Params :', safe(req.params));
+    console.log(` Time   : ${new Date().toISOString()}`);
+    console.log('─────────────────────────\n');
+  } catch (e) {
+    console.error('Logger error:', e.message);
+  }
   next();
+};
+
+const safe = (obj) => {
+  try {
+    return JSON.stringify(obj, null, 2);
+  } catch {
+    return '[unserializable]';
+  }
 };
 
 export default logger;
